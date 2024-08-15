@@ -157,7 +157,10 @@ func shouldRetry(c *gin.Context, openaiErr *dto.OpenAIErrorWithStatusCode, retry
 	if openaiErr.StatusCode/100 == 2 {
 		return false
 	}
-	return true
+	if openaiErr.Error.Code == "response_contains_clewd_and_429" {
+		return true
+	}
+	return false
 }
 
 func processChannelError(c *gin.Context, channelId int, channelType int, channelName string, autoBan bool, err *dto.OpenAIErrorWithStatusCode) {
