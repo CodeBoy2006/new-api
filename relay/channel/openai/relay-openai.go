@@ -21,6 +21,16 @@ import (
 )
 
 func OaiStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.OpenAIErrorWithStatusCode, *dto.Usage) {
+	// 检查响应正文中是否包含 "clewd" 和 "429"
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return service.OpenAIErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
+	}
+	if strings.Contains(string(responseBody), "clewd") && strings.Contains(string(responseBody), "429") {
+		return service.OpenAIErrorWrapper(fmt.Errorf("response contains clewd and 429"), "response_contains_clewd_and_429", http.StatusTooManyRequests), nil
+	}
+	resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
+
 	containStreamUsage := false
 	var responseId string
 	var createAt int64 = 0
@@ -84,7 +94,7 @@ func OaiStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 
 	shouldSendLastResp := true
 	var lastStreamResponse dto.ChatCompletionsStreamResponse
-	err := json.Unmarshal(common.StringToByteSlice(lastStreamData), &lastStreamResponse)
+	err = json.Unmarshal(common.StringToByteSlice(lastStreamData), &lastStreamResponse)
 	if err == nil {
 		responseId = lastStreamResponse.Id
 		createAt = lastStreamResponse.Created
@@ -194,15 +204,18 @@ func OaiStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 }
 
 func OpenaiHandler(c *gin.Context, resp *http.Response, promptTokens int, model string) (*dto.OpenAIErrorWithStatusCode, *dto.Usage) {
-	var simpleResponse dto.SimpleResponse
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
+	}
+	if strings.Contains(string(responseBody), "clewd") && strings.Contains(string(responseBody), "429") {
+		return service.OpenAIErrorWrapper(fmt.Errorf("response contains clewd and 429"), "response_contains_clewd_and_429", http.StatusTooManyRequests), nil
 	}
 	err = resp.Body.Close()
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
 	}
+	var simpleResponse dto.SimpleResponse
 	err = json.Unmarshal(responseBody, &simpleResponse)
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
@@ -248,6 +261,9 @@ func OpenaiTTSHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
 	}
+	if strings.Contains(string(responseBody), "clewd") && strings.Contains(string(responseBody), "429") {
+		return service.OpenAIErrorWrapper(fmt.Errorf("response contains clewd and 429"), "response_contains_clewd_and_429", http.StatusTooManyRequests), nil
+	}
 	err = resp.Body.Close()
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
@@ -278,15 +294,18 @@ func OpenaiTTSHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 }
 
 func OpenaiSTTHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo, responseFormat string) (*dto.OpenAIErrorWithStatusCode, *dto.Usage) {
-	var audioResp dto.AudioResponse
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
+	}
+	if strings.Contains(string(responseBody), "clewd") && strings.Contains(string(responseBody), "429") {
+		return service.OpenAIErrorWrapper(fmt.Errorf("response contains clewd and 429"), "response_contains_clewd_and_429", http.StatusTooManyRequests), nil
 	}
 	err = resp.Body.Close()
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
 	}
+	var audioResp dto.AudioResponse
 	err = json.Unmarshal(responseBody, &audioResp)
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
